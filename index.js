@@ -5,15 +5,20 @@ const glob = require('glob')
 const capture = require('minimatch-capture')
 const identifierfy = require('identifierfy')
 
+function jsPath(anyPath){
+  return anyPath.replace(new RegExp(path.sep.replace('\\','\\\\'),'g'), '/');
+}
+
 function generateMembers (files, pattern, cwd) {
   return capture.match(files, pattern).map(match => {
     const file = match[0]
     const subpath = match[1]
-    return {
+    let res = {
       file,
-      relative: './' + path.relative(cwd, path.resolve(cwd, file)),
+      relative: './' + jsPath(path.relative(cwd, path.resolve(cwd, file))),
       name: memberify(subpath)
     }
+    return res;
   })
 }
 
@@ -70,7 +75,13 @@ function makeNamespaceObject (t, localName, members) {
 
 const globPrefix = 'glob:'
 
-module.exports = babelCore => {
+/**
+ *
+ *
+ * @param {import('@babel/core')} babelCore
+ * @returns {babel.PluginObj}
+ */
+function importGlobPlugin(babelCore){
   const t = babelCore.types
   return {
     visitor: {
@@ -80,6 +91,8 @@ module.exports = babelCore => {
         const error = message => ast.buildCodeFrameError(message)
 
         let pattern = source.value
+
+        if (pattern.indexOf('*') < 0) return;
 
         if (!glob.hasMagic(pattern)) {
           if (pattern.startsWith(globPrefix)) {
@@ -101,9 +114,10 @@ module.exports = babelCore => {
         }
 
         const cwd = path.dirname(state.file.opts.filename)
-        const files = glob.sync(pattern, {cwd, strict: true})
+        const files = glob.sync(pattern, { cwd, strict: true })
         const members = generateMembers(files, pattern, cwd)
         const unique = Object.create(null)
+
         for (const member of members) {
           if (member.name === null) {
             throw error(`Could not generate a valid identifier for '${member.file}'`)
@@ -147,3 +161,5 @@ module.exports = babelCore => {
     }
   }
 }
+
+module.exports = importGlobPlugin;

@@ -1,6 +1,6 @@
 import { resolve as resolvePath } from 'path'
 import test from 'ava'
-import { transform as babelTransform } from 'babel-core'
+import { transform as babelTransform } from '@babel/core'
 
 function transform (code) {
   return babelTransform(code, {
@@ -81,7 +81,7 @@ test('throws when importing the default member', async t => {
 test('rewrites the import statement', t => {
   t.is(
     transform("import { foo, bar } from 'glob:./fixtures/multiple/*.txt'"),
-    `import foo from './fixtures/multiple/foo.txt';
+`import foo from './fixtures/multiple/foo.txt';
 import bar from './fixtures/multiple/bar.txt';`)
 })
 
