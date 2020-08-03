@@ -13,61 +13,65 @@ function transform(code) {
 }
 
 function attempt(code) {
-  return new Promise(resolve => resolve(transform(code)))
+  return new Promise(resolve => {
+    resolve(transform(code));
+  })
 }
 
 function check(msg) {
   const preface = `${__filename}: `
   return err => {
+    const iLineEnd = err.message.indexOf("\n");
+    if(iLineEnd<0) iLineEnd=undefined;
     return err instanceof SyntaxError &&
       err.message.slice(0, preface.length) === preface &&
-      err.message.slice(preface.length) === msg
+      err.message.slice(preface.length).trim().startsWith(msg)
   }
 }
 
 test("throws if import does not contain a pattern", async t => {
   await t.throws(
     attempt(`import { foo } from "glob:"`),
-    check(`Missing glob pattern "glob:"`))
+    check(`Missing glob pattern 'glob:'`))
 })
 
 test("throws if pattern is absolute", async t => {
   await t.throws(
     attempt(`import { foo } from "glob:/folder/*"`),
-    check(`Glob pattern must be relative, was "/folder/*"`))
+    check(`Glob pattern must be relative, was '/folder/*'`))
 })
 
 test("throws if pattern is not relative", async t => {
   await t.throws(
     attempt(`import { foo } from "glob:folder/*"`),
-    check(`Glob pattern must be relative, was "folder/*"`))
+    check(`Glob pattern must be relative, was 'folder/*'`))
 })
 
 test("throws if no glob: prefix and does not start with .", async t => {
   await t.throws(
     attempt(`import { foo } from "glob:folder/*"`),
-    check(`Glob pattern must be relative, was "folder/*"`))
+    check(`Glob pattern must be relative, was 'folder/*'`))
 })
 
 test("throws if a member identifier cannot be generated", async t => {
   await t.throws(
     attempt(`import * as members from "glob:./fixtures/cannot-generate-identifier/*.txt"`),
-    check(`Could not generate a valid identifier for "./fixtures/cannot-generate-identifier/-.txt"`))
+    check(`Could not generate a valid identifier for './fixtures/cannot-generate-identifier/-.txt'`))
 })
 
 test("throws if members collide", async t => {
   await t.throws(
     attempt(`import { fooBar } from "glob:./fixtures/member-collision/*.txt"`),
-    check(`Found colliding members "fooBar"`))
+    check(`Found colliding members 'fooBar'`))
 })
 
 test("throws if imports cannot be mapped", async t => {
   await t.throws(
     attempt(`import { baz } from "glob:./fixtures/foo-bar/*.txt"`),
-    check(`Could not match import "baz" to a module. Available members are "fooBar"`))
+    check(`Could not match import 'baz' to a module. Available members are 'fooBar`))
 })
 
-test(`cannot map "toString"`, async t => {
+test(`cannot map "toString"`, async t => {  
   await t.throws(
     attempt(`import { toString } from "glob:./fixtures/foo-bar/*.txt"`),
     SyntaxError)

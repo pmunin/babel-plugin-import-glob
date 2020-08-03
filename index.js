@@ -100,14 +100,14 @@ function importGlobPlugin(babelCore){
 
         let pattern = source.value
 
-        if (pattern.indexOf('*') < 0) return;
-
         if (!glob.hasMagic(pattern)) {
           if (pattern.startsWith(globPrefix)) {
             throw error(`Missing glob pattern '${pattern}'`)
           }
           return
         }
+
+        if (pattern.indexOf('*') < 0) return;
 
         if (pattern.startsWith(globPrefix)) {
           pattern = pattern.substr(globPrefix.length)
