@@ -10,7 +10,7 @@
   },
   "scripts": {
     "lint": "as-i-preach",
-    "test": "ava",
+    "test": "clear && ava",
     "coverage": "nyc npm test"
   },
   "repository": {
@@ -31,7 +31,8 @@
     "ava": "^0.21.0",
     "@babel/core": "^7.11.0",
     "codecov": "^2.1.0",
-    "nyc": "^11.0.1"
+    "nyc": "^11.0.1",
+    "chalk": "4.1.0"
   },
   "dependencies": {
     "glob": "^7.0.0",
