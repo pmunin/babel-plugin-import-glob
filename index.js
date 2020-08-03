@@ -44,6 +44,14 @@ function hasImportDefaultSpecifier (specifiers) {
   return specifiers.some(specifier => specifier.type === 'ImportDefaultSpecifier')
 }
 
+/**
+ *
+ *
+ * @param {typeof babel.types} t
+ * @param {*} localName
+ * @param {*} src
+ * @returns
+ */
 function makeImport (t, localName, src) {
   return t.importDeclaration([
     t.importDefaultSpecifier(t.identifier(localName))
