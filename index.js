@@ -23,7 +23,7 @@ function generateMembers (files, pattern, cwd) {
 }
 
 function memberify (subpath) {
-  const pieces = subpath.split(path.sep)
+  const pieces = subpath.split('/')
   const prefixReservedWords = pieces.length === 1
   const ids = []
   for (let index = 0; index < pieces.length; index++) {
