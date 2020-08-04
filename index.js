@@ -5,8 +5,27 @@ const glob = require('glob')
 const capture = require('minimatch-capture')
 const identifierfy = require('identifierfy')
 
-function jsPath(anyPath){
+/**
+ * Returns cross-environment format of path (./path/to/file) - just replaces \ to /
+ * @param {string} anyPath
+ * @returns
+ */
+function crossEnvPath(anyPath){
   return anyPath.replace(new RegExp(path.sep.replace('\\','\\\\'),'g'), '/');
+}
+
+
+/**
+ * 
+ * @param {babel.PluginPass} state 
+ * @returns {{trimFileExtensions:string[]}}
+ */
+function getPluginOptions(state)
+{
+  let res = state.opts || {};
+  if(!res.trimFileExtensions)
+    res.trimFileExtensions = ["js","jsx", "ts", "tsx"];
+  return res;
 }
 
 /**
@@ -15,15 +34,25 @@ function jsPath(anyPath){
  * @param {string[]} files 
  * @param {string} pattern pattern
  * @param {string} cwd base directory
+ * @param {babel.PluginPass} state base directory
  * @returns {{file:string, relative:string, name:string}[]}
  */
-function generateMembers (files, pattern, cwd) {
+function generateChildModules (files, pattern, cwd, state) {
   return capture.match(files, pattern).map(match => {
     const file = match[0]
     const subpath = match[1]
+    let relative = './' + crossEnvPath(path.relative(cwd, path.resolve(cwd, file)));
+
+    const opts = getPluginOptions(state);
+
+    for (const ext of opts.trimFileExtensions) {
+      if(relative.endsWith('.'+ext))
+        relative = relative.substr(0, relative.length-('.'+ext).length);
+    }
+
     let res = {
       file,
-      relative: './' + jsPath(path.relative(cwd, path.resolve(cwd, file))),
+      relative,
       name: memberify(subpath)
     }
     return res;
@@ -149,7 +178,7 @@ function importGlobPlugin(babelCore){
 
         const currentDir = path.dirname(state.file.opts.filename)
         const files = glob.sync(pattern, { cwd: currentDir, strict: true })
-        const modules = generateMembers(files, pattern, currentDir)
+        const modules = generateChildModules(files, pattern, currentDir, state);
         const unique = Object.create(null)
 
         //verifying name collisions of imported modules

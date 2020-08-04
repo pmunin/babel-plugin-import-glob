@@ -8,7 +8,7 @@ function transform(code) {
     babelrc: false,
     filename: __filename,
     sourceRoot: __dirname,
-    plugins: [resolvePath(__dirname, "..")]
+    plugins: [[resolvePath(__dirname, "..")]]
   }).code
 }
 
@@ -247,28 +247,32 @@ Object.freeze(members);`
 })
 
 
-// test("my stories", t => {
+test.only("my stories", t => {
 
-//   const path = require('path')
-//   const glob = require('glob')
-//   const capture = require('minimatch-capture')
-//   const identifierfy = require('identifierfy')
+  const path = require('path')
+  const glob = require('glob')
+  const capture = require('minimatch-capture')
+  const identifierfy = require('identifierfy')
 
-//   const pattern = "../**/*.stories?(.js|)";
+  const pattern = "../**/*.stories?(.js|)";
 
-//   // console.warn({__dirname:__dirname});
-//   // console.warn(glob.sync(pattern, {cwd:__dirname, }));
+  // console.warn({__dirname:__dirname});
+  // console.warn(glob.sync(pattern, {cwd:__dirname, }));
 
-//   console.warn(
-//   transform(`import * as stories from "glob:${pattern}"`),
-//   );
+  console.warn(
+    "\n\n\n>>>>>>>>>>>>>>>>>> Import * as stories: \n\n\n",
+    transform(`import * as stories from "glob:${pattern}"`),
+  "\n\n\n>>>>>>>>>>>>>>>>>> Import stories: \n\n\n",
+  transform(`import stories from "glob:${pattern}"`),
+  );
 
-//    //t.is(
-//      /** 
-// [ '../test/fixtures/myStories/component1/component1.stories.js',
-//   '../test/fixtures/myStories/component2/component2.stories',
-//   '../test/fixtures/myStories/my.stories.js' ]
-//      */
-// //     `import fooBar$baz from "./fixtures/subdirectories/foo-bar/baz.txt";
-//  //import qux$quux from "./fixtures/subdirectories/qux/quux.txt";`);
-// });
+  t.pass();
+   //t.is(
+     /** 
+[ '../test/fixtures/myStories/component1/component1.stories.js',
+  '../test/fixtures/myStories/component2/component2.stories',
+  '../test/fixtures/myStories/my.stories.js' ]
+     */
+//     `import fooBar$baz from "./fixtures/subdirectories/foo-bar/baz.txt";
+ //import qux$quux from "./fixtures/subdirectories/qux/quux.txt";`);
+});
