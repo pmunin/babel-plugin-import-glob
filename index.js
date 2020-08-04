@@ -5,17 +5,54 @@ const glob = require('glob')
 const capture = require('minimatch-capture')
 const identifierfy = require('identifierfy')
 
-function jsPath(anyPath){
+/**
+ * Returns cross-environment format of path (./path/to/file) - just replaces \ to /
+ * @param {string} anyPath
+ * @returns
+ */
+function crossEnvPath(anyPath){
   return anyPath.replace(new RegExp(path.sep.replace('\\','\\\\'),'g'), '/');
 }
 
-function generateMembers (files, pattern, cwd) {
+
+/**
+ * 
+ * @param {babel.PluginPass} state 
+ * @returns {{trimFileExtensions:string[]}}
+ */
+function getPluginOptions(state)
+{
+  let res = state.opts || {};
+  if(!res.trimFileExtensions)
+    res.trimFileExtensions = ["js","jsx", "ts", "tsx"];
+  return res;
+}
+
+/**
+ *
+ *
+ * @param {string[]} files 
+ * @param {string} pattern pattern
+ * @param {string} cwd base directory
+ * @param {babel.PluginPass} state base directory
+ * @returns {{file:string, relative:string, name:string}[]}
+ */
+function generateChildModules (files, pattern, cwd, state) {
   return capture.match(files, pattern).map(match => {
     const file = match[0]
     const subpath = match[1]
+    let relative = './' + crossEnvPath(path.relative(cwd, path.resolve(cwd, file)));
+
+    const opts = getPluginOptions(state);
+
+    for (const ext of opts.trimFileExtensions) {
+      if(relative.endsWith('.'+ext))
+        relative = relative.substr(0, relative.length-('.'+ext).length);
+    }
+
     let res = {
       file,
-      relative: './' + jsPath(path.relative(cwd, path.resolve(cwd, file))),
+      relative,
       name: memberify(subpath)
     }
     return res;
@@ -52,12 +89,21 @@ function hasImportDefaultSpecifier (specifiers) {
  * @param {*} src
  * @returns
  */
-function makeImport (t, localName, src) {
+function makeImport (t, localName, src, isDefault) {
   return t.importDeclaration([
-    t.importDefaultSpecifier(t.identifier(localName))
+    isDefault
+    ? t.importDefaultSpecifier(t.identifier(localName))
+    : t.importNamespaceSpecifier(t.identifier(localName))
   ], t.stringLiteral(src))
 }
 
+/**
+ *
+ *
+ * @param {typeof babel.types} t
+ * @param {*} localName
+ * @returns
+ */
 function freezeNamespaceObject (t, localName) {
   return t.expressionStatement(
     t.callExpression(
@@ -67,9 +113,18 @@ function freezeNamespaceObject (t, localName) {
   )
 }
 
+/**
+ *
+ *
+ * @param {typeof babel.types} t
+ * @param {string} localName
+ * @param {*} members
+ * @returns
+ */
 function makeNamespaceObject (t, localName, members) {
+  
   const properties = members.map(member => t.objectProperty(
-    t.identifier(member.name), t.identifier(`_${localName}_${member.name}`)
+    t.stringLiteral(member.relative), t.identifier(`_${localName}_${member.name}`)
   ))
   return t.variableDeclaration(
     'const', [
@@ -113,55 +168,58 @@ function importGlobPlugin(babelCore){
           pattern = pattern.substr(globPrefix.length)
         }
 
-        if (hasImportDefaultSpecifier(specifiers)) {
-          throw error('Cannot import the default member')
-        }
+        //if (hasImportDefaultSpecifier(specifiers)) {
+        //  throw error('Cannot import the default member')
+        //}
 
         if (!pattern.startsWith('.')) {
           throw error(`Glob pattern must be relative, was '${pattern}'`)
         }
 
-        const cwd = path.dirname(state.file.opts.filename)
-        const files = glob.sync(pattern, { cwd, strict: true })
-        const members = generateMembers(files, pattern, cwd)
+        const currentDir = path.dirname(state.file.opts.filename)
+        const files = glob.sync(pattern, { cwd: currentDir, strict: true })
+        const modules = generateChildModules(files, pattern, currentDir, state);
         const unique = Object.create(null)
 
-        for (const member of members) {
-          if (member.name === null) {
-            throw error(`Could not generate a valid identifier for '${member.file}'`)
+        //verifying name collisions of imported modules
+        for (const childModule of modules) {
+          if (childModule.name === null) {
+            throw error(`Could not generate a valid identifier for '${childModule.file}'`)
           }
-          if (unique[member.name]) {
+          if (unique[childModule.name]) {
             // hyphen conversion means foo-bar and fooBar will collide.
-            throw error(`Found colliding members '${member.name}'`)
+            throw error(`Found colliding members '${childModule.name}'`)
           }
-          unique[member.name] = true
+          unique[childModule.name] = true
         }
+
+        //console.warn(">>>>", specifiers.map(sp=>({sp, loc:sp.loc, local:sp.local})));
 
         if (specifiers.length > 0) {
           const replacement = []
           for (const specifier of specifiers) {
             const type = specifier.type
             const localName = specifier.local.name
-            if (type === 'ImportSpecifier') {
-              const importName = specifier.imported.name
-              const member = members.find(m => m.name === importName)
-              if (!member) {
-                const names = members.map(m => m.name).join("', '")
-                throw error(`Could not match import '${importName}' to a module. Available members are '${names}'`)
-              }
-              replacement.push(makeImport(t, localName, member.relative))
-            } else {
-              // Only ImportNamespaceSpecifier can be remaining, since
-              // importDefaultSpecifier has previously been rejected.
-              for (const member of members) {
-                replacement.push(makeImport(t, `_${localName}_${member.name}`, member.relative))
-              }
-              replacement.push(makeNamespaceObject(t, localName, members), freezeNamespaceObject(t, localName))
+            switch (type) {
+              case 'ImportDefaultSpecifier':
+              case 'ImportNamespaceSpecifier':
+                  // Only ImportNamespaceSpecifier can be remaining, since
+                  // importDefaultSpecifier has previously been rejected.
+                  const isDefault = type==="ImportDefaultSpecifier";
+                  for (const childModule of modules) {
+                    
+                    replacement.push(makeImport(t, `_${localName}_${childModule.name}`, childModule.relative, isDefault))
+                  }
+                  replacement.push(makeNamespaceObject(t, localName, modules, isDefault), freezeNamespaceObject(t, localName))
+                break;
+              default:
+                throw new Error("Do not support import {...names...} from 'glob:...'")
+                break;
             }
           }
           ast.replaceWithMultiple(replacement)
         } else {
-          ast.replaceWithMultiple(members.map(member => {
+          ast.replaceWithMultiple(modules.map(member => {
             return t.importDeclaration([], t.stringLiteral(member.relative))
           }))
         }

@@ -10,7 +10,7 @@
   },
   "scripts": {
     "lint": "as-i-preach",
-    "test": "clear && ava",
+    "test": "ava",
     "coverage": "nyc npm test"
   },
   "repository": {
