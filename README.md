@@ -42,7 +42,7 @@ What was changed?
     {
       "plugins":[
         ["./babel-plugin-import-glob-simplified",{
-          "trimFileExtensions":["js","jsx","ts","tsx"]
+          'trimFileExtensions':["js","jsx","ts","tsx"]
         }]
       ]
     }
