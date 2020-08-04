@@ -60,12 +60,21 @@ function hasImportDefaultSpecifier (specifiers) {
  * @param {*} src
  * @returns
  */
-function makeImport (t, localName, src) {
+function makeImport (t, localName, src, isDefault) {
   return t.importDeclaration([
-    t.importDefaultSpecifier(t.identifier(localName))
+    isDefault
+    ? t.importDefaultSpecifier(t.identifier(localName))
+    : t.importNamespaceSpecifier(t.identifier(localName))
   ], t.stringLiteral(src))
 }
 
+/**
+ *
+ *
+ * @param {typeof babel.types} t
+ * @param {*} localName
+ * @returns
+ */
 function freezeNamespaceObject (t, localName) {
   return t.expressionStatement(
     t.callExpression(
@@ -75,9 +84,18 @@ function freezeNamespaceObject (t, localName) {
   )
 }
 
+/**
+ *
+ *
+ * @param {typeof babel.types} t
+ * @param {string} localName
+ * @param {*} members
+ * @returns
+ */
 function makeNamespaceObject (t, localName, members) {
+  
   const properties = members.map(member => t.objectProperty(
-    t.identifier(member.name), t.identifier(`_${localName}_${member.name}`)
+    t.stringLiteral(member.relative), t.identifier(`_${localName}_${member.name}`)
   ))
   return t.variableDeclaration(
     'const', [
@@ -146,7 +164,7 @@ function importGlobPlugin(babelCore){
           unique[childModule.name] = true
         }
 
-        console.warn(">>>>", specifiers.map(sp=>({sp, loc:sp.loc, local:sp.local})));
+        //console.warn(">>>>", specifiers.map(sp=>({sp, loc:sp.loc, local:sp.local})));
 
         if (specifiers.length > 0) {
           const replacement = []
@@ -155,14 +173,15 @@ function importGlobPlugin(babelCore){
             const localName = specifier.local.name
             switch (type) {
               case 'ImportDefaultSpecifier':
+              case 'ImportNamespaceSpecifier':
                   // Only ImportNamespaceSpecifier can be remaining, since
                   // importDefaultSpecifier has previously been rejected.
+                  const isDefault = type==="ImportDefaultSpecifier";
                   for (const childModule of modules) {
-                    replacement.push(makeImport(t, `_${localName}_${childModule.name}`, childModule.relative))
+                    
+                    replacement.push(makeImport(t, `_${localName}_${childModule.name}`, childModule.relative, isDefault))
                   }
-                  replacement.push(makeNamespaceObject(t, localName, modules), freezeNamespaceObject(t, localName))
-                break;
-              case 'ImportNamespaceSpecifier':
+                  replacement.push(makeNamespaceObject(t, localName, modules, isDefault), freezeNamespaceObject(t, localName))
                 break;
               default:
                 throw new Error("Do not support import {...names...} from 'glob:...'")
