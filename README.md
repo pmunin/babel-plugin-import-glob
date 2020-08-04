@@ -65,5 +65,9 @@ Then register it in your `.babelrc` file, like:
 }
 ```
 
+## TODO:
+
+Tests need to be fixed accordingly to new design
+
 [patterns]: https://www.npmjs.com/package/glob#glob-primer
 [babel-plugin-import-glob]: https://www.npmjs.com/package/babel-plugin-import-glob
