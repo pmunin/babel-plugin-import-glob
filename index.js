@@ -9,6 +9,14 @@ function jsPath(anyPath){
   return anyPath.replace(new RegExp(path.sep.replace('\\','\\\\'),'g'), '/');
 }
 
+/**
+ *
+ *
+ * @param {string[]} files 
+ * @param {string} pattern pattern
+ * @param {string} cwd base directory
+ * @returns {{file:string, relative:string, name:string}[]}
+ */
 function generateMembers (files, pattern, cwd) {
   return capture.match(files, pattern).map(match => {
     const file = match[0]
@@ -113,55 +121,57 @@ function importGlobPlugin(babelCore){
           pattern = pattern.substr(globPrefix.length)
         }
 
-        if (hasImportDefaultSpecifier(specifiers)) {
-          throw error('Cannot import the default member')
-        }
+        //if (hasImportDefaultSpecifier(specifiers)) {
+        //  throw error('Cannot import the default member')
+        //}
 
         if (!pattern.startsWith('.')) {
           throw error(`Glob pattern must be relative, was '${pattern}'`)
         }
 
-        const cwd = path.dirname(state.file.opts.filename)
-        const files = glob.sync(pattern, { cwd, strict: true })
-        const members = generateMembers(files, pattern, cwd)
+        const currentDir = path.dirname(state.file.opts.filename)
+        const files = glob.sync(pattern, { cwd: currentDir, strict: true })
+        const modules = generateMembers(files, pattern, currentDir)
         const unique = Object.create(null)
 
-        for (const member of members) {
-          if (member.name === null) {
-            throw error(`Could not generate a valid identifier for '${member.file}'`)
+        //verifying name collisions of imported modules
+        for (const childModule of modules) {
+          if (childModule.name === null) {
+            throw error(`Could not generate a valid identifier for '${childModule.file}'`)
           }
-          if (unique[member.name]) {
+          if (unique[childModule.name]) {
             // hyphen conversion means foo-bar and fooBar will collide.
-            throw error(`Found colliding members '${member.name}'`)
+            throw error(`Found colliding members '${childModule.name}'`)
           }
-          unique[member.name] = true
+          unique[childModule.name] = true
         }
+
+        console.warn(">>>>", specifiers.map(sp=>({sp, loc:sp.loc, local:sp.local})));
 
         if (specifiers.length > 0) {
           const replacement = []
           for (const specifier of specifiers) {
             const type = specifier.type
             const localName = specifier.local.name
-            if (type === 'ImportSpecifier') {
-              const importName = specifier.imported.name
-              const member = members.find(m => m.name === importName)
-              if (!member) {
-                const names = members.map(m => m.name).join("', '")
-                throw error(`Could not match import '${importName}' to a module. Available members are '${names}'`)
-              }
-              replacement.push(makeImport(t, localName, member.relative))
-            } else {
-              // Only ImportNamespaceSpecifier can be remaining, since
-              // importDefaultSpecifier has previously been rejected.
-              for (const member of members) {
-                replacement.push(makeImport(t, `_${localName}_${member.name}`, member.relative))
-              }
-              replacement.push(makeNamespaceObject(t, localName, members), freezeNamespaceObject(t, localName))
+            switch (type) {
+              case 'ImportDefaultSpecifier':
+                  // Only ImportNamespaceSpecifier can be remaining, since
+                  // importDefaultSpecifier has previously been rejected.
+                  for (const childModule of modules) {
+                    replacement.push(makeImport(t, `_${localName}_${childModule.name}`, childModule.relative))
+                  }
+                  replacement.push(makeNamespaceObject(t, localName, modules), freezeNamespaceObject(t, localName))
+                break;
+              case 'ImportNamespaceSpecifier':
+                break;
+              default:
+                throw new Error("Do not support import {...names...} from 'glob:...'")
+                break;
             }
           }
           ast.replaceWithMultiple(replacement)
         } else {
-          ast.replaceWithMultiple(members.map(member => {
+          ast.replaceWithMultiple(modules.map(member => {
             return t.importDeclaration([], t.stringLiteral(member.relative))
           }))
         }
