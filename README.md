@@ -59,7 +59,7 @@ Then register it in your `.babelrc` file, like:
 {
   "plugins": [
     ["./babel-plugin-import-glob-simplified", {
-      //"trimFileExtensions":["js","jsx", "ts", "tsx"]
+      "trimFileExtensions":["js","jsx", "ts", "tsx"] //optional
     }]
   ]
 }
