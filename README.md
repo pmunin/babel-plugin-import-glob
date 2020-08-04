@@ -41,7 +41,7 @@ What was changed?
     //.babelrc:
     {
       "plugins":[
-        ['./babel-plugin-import-glob-simplified',{
+        ["./babel-plugin-import-glob-simplified",{
           "trimFileExtensions":["js","jsx","ts","tsx"]
         }]
       ]
