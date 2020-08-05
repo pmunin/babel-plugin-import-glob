@@ -41,7 +41,7 @@ What was changed?
     //.babelrc:
     {
       "plugins":[
-        ["./babel-plugin-import-glob-simplified",{
+        ["@babel/plugin-import-glob-simplified",{
           'trimFileExtensions':["js","jsx","ts","tsx"]
         }]
       ]
@@ -51,14 +51,17 @@ What was changed?
 
 ## Installation
 
-Copy [babel-plugin-import-glob-simplified.js](./index.js) file to the folder where you `.babelrc` or `package.json` located.
+Add to your `package.json/devDependencies`:
+```json
+"babel-plugin-import-glob-simplified": "https://github.com/pmunin/babel-plugin-import-glob-simplified.git"
+```
 
 Then register it in your `.babelrc` file, like:
 
 ```json
 {
   "plugins": [
-    ["./babel-plugin-import-glob-simplified", {
+    ["@babel/plugin-import-glob-simplified", {
       "trimFileExtensions":["js","jsx", "ts", "tsx"] //optional
     }]
   ]
